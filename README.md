@@ -1,7 +1,6 @@
 # peps_download
 
-This is a fork of github projetct: https://github.com/olivierhagolle/peps_download
-The differences are the following:
+This is a fork of github project: https://github.com/olivierhagolle/peps_download. The differences are the following:
 - Supports python 3
 - New query parameter to select a specific tile
 - New query parameter to define a geometry in Well Known Text standard 
@@ -19,7 +18,8 @@ This software is still quite basic, but if you have an account at PEPS, you may 
 
  which downloads the *Sentinel-2 single tile* products  acquired in January 2018 above an area of Toulouse
 
-##Authentification 
+
+## Authentification 
 
 The file peps.txt must contain your email address and your password on the same line, such as follows :
 `your.email@address.fr top_secret`
