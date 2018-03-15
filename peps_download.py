@@ -1,20 +1,18 @@
 #! /usr/bin/env python
 # -*- coding: iso-8859-1 -*-
-import json
 import time
-import os, os.path, optparse,sys
+import json
+import os, os.path, optparse, sys
 from datetime import date
 
 ###########################################################################
 class OptionParser (optparse.OptionParser):
- 
     def check_required (self, opt):
       option = self.get_option(opt)
- 
+
       # Assumes the option's 'default' is set to None!
       if getattr(self.values, option.dest) is None:
           self.error("%s option not supplied" % option)
- 
 ###########################################################################
 
 #==================
@@ -22,21 +20,22 @@ class OptionParser (optparse.OptionParser):
 #==================
 if len(sys.argv) == 1:
     prog = os.path.basename(sys.argv[0])
-    print '      '+sys.argv[0]+' [options]'
-    print "     Aide : ", prog, " --help"
-    print "        ou : ", prog, " -h"
-    print "example 1 : python %s -l 'Toulouse' -a peps.txt -d 2016-12-06 -f 2017-02-01 -c S2ST" %sys.argv[0]
-    print "example 2 : python %s --lon 1 --lat 44 -a peps.txt -d 2015-11-01 -f 2015-12-01 -c S2"%sys.argv[0]
-    print "example 3 : python %s --lonmin 1 --lonmax 2 --latmin 43 --latmax 44 -a peps.txt -d 2015-11-01 -f 2015-12-01 -c S2"%sys.argv[0]
-    print "example 4 : python %s -l 'Toulouse' -a peps.txt -c SpotWorldHeritage -p SPOT4 -d 2005-11-01 -f 2006-12-01"%sys.argv[0]
-    print "example 5 : python %s -c S1 -p GRD -l 'Toulouse' -a peps.txt -d 2015-11-01 -f 2015-12-01"%sys.argv[0]
+    print("      ", sys.argv[0], " [options]")
+    print("     Aide : ", prog, " --help")
+    print("       ou : ", prog, " -h")
+    print("example 1 : python %s -l 'Toulouse' -a peps.txt -d 2016-12-06 -f 2017-02-01 -c S2ST" %sys.argv[0])
+    print("example 2 : python %s --lon 1 --lat 44 -a peps.txt -d 2015-11-01 -f 2015-12-01 -c S2"%sys.argv[0])
+    print("example 3 : python %s --lonmin 1 --lonmax 2 --latmin 43 --latmax 44 -a peps.txt -d 2015-11-01 -f 2015-12-01 -c S2"%sys.argv[0])
+    print("example 4 : python %s -l 'Toulouse' -a peps.txt -c SpotWorldHeritage -p SPOT4 -d 2005-11-01 -f 2006-12-01"%sys.argv[0])
+    print("example 5 : python %s -c S1 -p GRD -l 'Toulouse' -a peps.txt -d 2015-11-01 -f 2015-12-01"%sys.argv[0])
+    print("example 6 : python %s -c S2ST -a peps.txt -d 2018-01-01 -f 2018-01-31 -t 57LYC"%sys.argv[0])
+    print('example 7 : python %s -c S2ST -a peps.txt -d 2018-01-01 -f 2018-01-31 --geom "MULTIPOLYGON(((20 35, 10 30, 10 10, 30 5, 45 20, 20 35)"))'%sys.argv[0])
     sys.exit(-1)
 else :
     usage = "usage: %prog [options] "
     parser = OptionParser(usage=usage)
-  
     parser.add_option("-l","--location", dest="location", action="store", type="string", \
-            help="town name (pick one which is not too frequent to avoid confusions)",default=None)		
+            help="town name (pick one which is not too frequent to avoid confusions)",default=None)     
     parser.add_option("-a","--auth", dest="auth", action="store", type="string", \
             help="Peps account and password file")
     parser.add_option("-w","--write_dir", dest="write_dir", action="store",type="string",  \
@@ -51,6 +50,8 @@ else :
             help="Do not download products, just print curl command",default=False)
     parser.add_option("-d", "--start_date", dest="start_date", action="store", type="string", \
             help="start date, fmt('2015-12-22')",default=None)
+    parser.add_option("--geom", dest="geometry", action="store", type="string", \
+            help="Geometry defined in Well Known Text standard (WKT) with coordinates in decimal degrees (EPSG:4326)", default=None)
     parser.add_option("--lat", dest="lat", action="store", type="float", \
             help="latitude in decimal degrees",default=None)
     parser.add_option("--lon", dest="lon", action="store", type="float", \
@@ -67,37 +68,67 @@ else :
             help="Orbit Path number",default=None)
     parser.add_option("-f","--end_date", dest="end_date", action="store", type="string", \
             help="end date, fmt('2015-12-23')",default=None)
+    parser.add_option("-t","--tile", dest="tile", action="store", type="string", \
+            help="Tile identifier (MGRS) (eg. 57LYC or 57LZC)",default=None)
     parser.add_option("--json", dest="search_json_file", action="store", type="string", \
             help="Output search JSON filename", default=None)
-
     parser.add_option("--attempts", dest="nb_attempts", action="store", type="int", \
                       help="Max number of attempts", default=5)
-
     (options, args) = parser.parse_args()
 
 if options.search_json_file==None or options.search_json_file=="":
     options.search_json_file='search.json'
 
-if options.location==None:    
-    if options.lat==None or options.lon==None:
-        if options.latmin==None or options.lonmin==None or options.latmax==None or options.lonmax==None:
-            print "provide at least a point or rectangle"
-            sys.exit(-1)
-        else:
-            geom='rectangle'
+
+mode_tile=options.tile!=None
+mode_geom=options.geometry!=None
+mode_location=options.location!=None
+mode_latlon=options.lat!=None or options.lon!=None or \
+            options.latmin!=None or options.lonmin!=None or options.latmax!=None or options.lonmax!=None
+mode_point=options.lat!=None and options.lon!=None
+mode_rect=options.latmin!=None and options.lonmin!=None and options.latmax!=None and options.lonmax!=None
+
+if mode_tile:
+    if mode_geom or mode_location or mode_latlon:
+        print("please choose between tile (-t), location (-l), geometry (--geom), point (--lat / --lon) or rectangle (--latmin / --latmax / --lonmin / --lonmax)")
+        sys.exit(-1)
     else:
-        if options.latmin==None and options.lonmin==None and options.latmax==None and options.lonmax==None:
-            geom='point'
+        if len(options.tile) != 5:
+            print("invalid tile identifier : 5 characters required composed of UTM zone (2 chars), latitude band (1 char), MGRS square (2 chars)")
+            sys.exit(-2)
         else:
-            print "please choose between point and rectangle, but not both"
-            sys.exit(-1)
-            
-else :
-    if options.latmin==None and options.lonmin==None and options.latmax==None and options.lonmax==None and options.lat==None or options.lon==None:
+            geom='tile'
+
+if mode_geom:
+    if mode_tile or mode_location or mode_latlon:
+        print("please choose between tile (-t), location (-l), geometry (--geom), point (--lat / --lon) or rectangle (--latmin / --latmax / --lonmin / --lonmax)")
+        sys.exit(-1)
+    else:
+        geom='geometry'
+
+if mode_location:
+    if mode_tile or mode_geom or mode_latlon:
+        print("please choose between tile (-t), location (-l), geometry (--geom), point (--lat / --lon) or rectangle (--latmin / --latmax / --lonmin / --lonmax)")
+        sys.exit(-1)
+    else:
         geom='location'
-    else :
-          print "please choose location and coordinates, but not both"
-          sys.exit(-1)
+
+if mode_latlon:
+    if mode_tile or mode_geom or mode_location:
+        print("please choose between tile (-t), location (-l), geometry (--geom), point (--lat / --lon) or rectangle (--latmin / --latmax / --lonmin / --lonmax)")
+        sys.exit(-1)
+    else:
+        if (options.lat!=None or options.lon!=None) and \
+           (options.latmin!=None or options.lonmin!=None or options.latmax!=None or options.lonmax!=None):
+            print("please choose between point (--lat / --lon) or rectangle (--latmin / --latmax / --lonmin / --lonmax), but not both")
+            sys.exit(-1)
+        elif mode_point:
+            geom='point'
+        elif mode_rect:
+            geom='rectangle'
+        else:
+            print("provide at least a point or rectangle")
+            sys.exit(-1)
 
 # geometric parameters of catalog request          
 if geom=='point':
@@ -106,6 +137,10 @@ elif geom=='rectangle':
     query_geom='box={lonmin},{latmin},{lonmax},{latmax}'.format(latmin=options.latmin,latmax=options.latmax,lonmin=options.lonmin,lonmax=options.lonmax)
 elif geom=='location':
     query_geom="q=%s"%options.location
+elif geom=='geometry':
+    query_geom="geometry=%s"%options.geometry.replace(' ', '%20')
+elif geom=='tile':
+    query_geom="tileid=%s"%options.tile
 
 # date parameters of catalog request    
 if options.start_date!=None:    
@@ -119,85 +154,79 @@ if options.start_date!=None:
 
 if options.collection=='S2':
     if  options.start_date>= '2016-12-05':
-        print "**** products after '2016-12-05' are stored in Tiled products collection"
-        print "**** please use option -c S2ST"
+        print("**** products after '2016-12-05' are stored in Tiled products collection")
+        print("**** please use option -c S2ST")
         time.sleep(5)
     elif options.end_date>= '2016-12-05':
-        print "**** products after '2016-12-05' are stored in Tiled products collection"
-        print "**** please use option -c S2ST to get the products after that date"
-        print "**** products before that date will be downloaded"
+        print("**** products after '2016-12-05' are stored in Tiled products collection")
+        print("**** please use option -c S2ST to get the products after that date")
+        print("**** products before that date will be downloaded")
         time.sleep(5)
 
 if options.collection=='S2ST':
     if  options.end_date< '2016-12-05':
-        print "**** products before '2016-12-05' are stored in non-tiled products collection"
-        print "**** please use option -c S2"
+        print("**** products before '2016-12-05' are stored in non-tiled products collection")
+        print("**** please use option -c S2")
         time.sleep(5)
     elif options.start_date< '2016-12-05':
-        print "**** products before '2016-12-05' are stored in non-tiled products collection"
-        print "**** please use option -c S2 to get the products before that date"
-        print "**** products after that date will be downloaded"
+        print("**** products before '2016-12-05' are stored in non-tiled products collection")
+        print("**** please use option -c S2 to get the products before that date")
+        print("**** products after that date will be downloaded")
         time.sleep(5)
 
 #====================
 # read authentification file
 #====================
 try:
-    f=file(options.auth)
+    f=open(options.auth, 'r')
     (email,passwd)=f.readline().split(' ')
     if passwd.endswith('\n'):
         passwd=passwd[:-1]
     f.close()
 except :
-    print "error with password file"
+    print("error with password file")
     sys.exit(-2)
-
-
 
 if os.path.exists(options.search_json_file):
     os.remove(options.search_json_file)
-    
 
- 
 # search in catalog
 if (options.product_type=="") and (options.sensor_mode=="") :
-	search_catalog='curl -k -o %s https://peps.cnes.fr/resto/api/collections/%s/search.json?%s\&startDate=%s\&completionDate=%s\&maxRecords=500'%(options.search_json_file,options.collection,query_geom,start_date,end_date)
+    search_catalog='curl -k -o %s "https://peps.cnes.fr/resto/api/collections/%s/search.json?%s&startDate=%s&completionDate=%s"'%(options.search_json_file,options.collection,query_geom,start_date,end_date)
 else :
-	search_catalog='curl -k -o %s https://peps.cnes.fr/resto/api/collections/%s/search.json?%s\&startDate=%s\&completionDate=%s\&maxRecords=500\&productType=%s\&sensorMode=%s'%(options.search_json_file,options.collection,query_geom,start_date,end_date,options.product_type,options.sensor_mode)
+    search_catalog='curl -k -o %s "https://peps.cnes.fr/resto/api/collections/%s/search.json?%s&startDate=%s&completionDate=%s&productType=%s&sensorMode=%s"'%(options.search_json_file,options.collection,query_geom,start_date,end_date,options.product_type,options.sensor_mode)
 
-      
-    
-print search_catalog
+print(search_catalog)
 os.system(search_catalog)
 time.sleep(5)
 
 # Filter catalog result
-with open(options.search_json_file) as data_file:    
+with open(options.search_json_file) as data_file:
     data = json.load(data_file)
 
 if 'ErrorCode' in data :
-    print data['ErrorMessage']
+    print(data['ErrorMessage'])
     sys.exit(-2)
-    
-#Sort data
+
+# Sort data
 download_dict={}
 storage_dict={}
 for i in range(len(data["features"])):
-    prod      =data["features"][i]["properties"]["productIdentifier"]
-    print prod
-    print data["features"][i]["properties"]["storage"]
+    prod=data["features"][i]["properties"]["productIdentifier"]
+    print(prod)
+    print(data["features"][i]["properties"]["storage"])
     feature_id=data["features"][i]["id"]
     try :
         storage   =data["features"][i]["properties"]["storage"]["mode"]
         platform  =data["features"][i]["properties"]["platform"]
-        print platform
+        print(platform)
         #recup du numero d'orbite
         orbitN=data["features"][i]["properties"]["orbitNumber"]
         if platform=='S1A':
-        #calcul de l'orbite relative pour Sentinel 1A
+            #calcul de l'orbite relative pour Sentinel 1A
             relativeOrbit=((orbitN-73)%175)+1
         elif platform=='S1B':
-        #calcul de l'orbite relative pour Sentinel 1B
+            #calcul de l'orbite relative pour Sentinel 1B
             relativeOrbit=((orbitN-27)%175)+1
 
         #print data["features"][i]["properties"]["productIdentifier"],data["features"][i]["id"],data["features"][i]["properties"]["startDate"],storage
@@ -205,7 +234,6 @@ for i in range(len(data["features"])):
         if options.orbit!=None:
             if platform.startswith('S2'):
                 if prod.find("_R%03d"%options.orbit)>0:
-
                     download_dict[prod]=feature_id
                     storage_dict[prod]=storage
             elif platform.startswith('S1'):
@@ -222,50 +250,48 @@ for i in range(len(data["features"])):
 # Download
 #====================
 
-
 if len(download_dict)==0:
-    print "No product matches the criteria"
+    print("No product matches the criteria")
 else:
-    for prod in download_dict.keys():	
-	if options.write_dir==None :
-	    options.write_dir=os.getcwd()	
-	file_exists= os.path.exists(("%s/%s.SAFE")%(options.write_dir,prod)) or  os.path.exists(("%s/%s.zip")%(options.write_dir,prod))
-	tmticks=time.time()
-	tmpfile=("%s/tmp_%s.tmp")%(options.write_dir,tmticks)
-	print "\nDownload of product : %s"%prod
-	get_product='curl -o %s -k -u %s:%s https://peps.cnes.fr/resto/collections/%s/%s/download/?issuerId=peps'%(tmpfile,email,passwd,options.collection,download_dict[prod])
-	print get_product
-	if (not(options.no_download) and not(file_exists)):
+    for prod in download_dict.keys():   
+        if options.write_dir==None :
+            options.write_dir=os.getcwd()   
+        file_exists= os.path.exists(("%s/%s.SAFE")%(options.write_dir,prod)) or  os.path.exists(("%s/%s.zip")%(options.write_dir,prod))
+        tmticks=time.time()
+        tmpfile=("%s/tmp_%s.tmp")%(options.write_dir,tmticks)
+        print("\nDownload of product : %s"%prod)
+        get_product='curl -o %s -k -u %s:%s https://peps.cnes.fr/resto/collections/%s/%s/download/?issuerId=peps'%(tmpfile,email,passwd,options.collection,download_dict[prod])
+        print(get_product)
+        if (not(options.no_download) and not(file_exists)):
             if storage_dict[prod]=="tape":
                 #downloading product from tape requires several attemps, waiting for the tape to be read
-                print "\n***product is on tape, we'll have to wait a little"
+                print("\n***product is on tape, we'll have to wait a little")
                 for attempt in range(options.nb_attempts):
-                    print "\t new attempt in three minutes", attempt+1
+                    print("\t new attempt in three minutes", attempt+1)
                     os.system(get_product)
                     if not os.path.exists(("%s/tmp_%s.tmp")%(options.write_dir,tmticks)):
                         if attempt==(options.nb_attempts-1):
-                            print "*********download timed out**********"
+                            print("*********download timed out**********")
                             sys.exit(-2)
                         time.sleep(180)
                     else:
                         break
-                        
             else :
                 os.system(get_product)
+            
             #check if binary product
-	    with open(tmpfile) as f_tmp:
-		try:
-		    tmp_data=json.load(f_tmp)
-                    print "Result is a text file (might come from a wrong password file)"
-                    print tmp_data
+            with open(tmpfile) as f_tmp:
+                try:
+                    tmp_data=json.load(f_tmp)
+                    print("Result is a text file (might come from a wrong password file)")
+                    print(tmp_data)
                     sys.exit(-1)
-		except ValueError:
-		    pass
-	    
-	    os.rename("%s"%tmpfile,"%s/%s.zip"%(options.write_dir,prod))
-	    print "product saved as : %s/%s.zip"%(options.write_dir,prod)
-	elif file_exists:
-	    print "%s already exists"%prod
-	elif options.no_download:
-	    print "no download (-n) option was chosen"
+                except ValueError:
+                    pass
 
+            os.rename("%s"%tmpfile,"%s/%s.zip"%(options.write_dir,prod))
+            print("product saved as : %s/%s.zip"%(options.write_dir,prod))
+        elif file_exists:
+            print("%s already exists"%prod)
+        elif options.no_download:
+            print("no download (-n) option was chosen")

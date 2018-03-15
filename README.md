@@ -1,41 +1,23 @@
 # peps_download
 
-This is a simple piece of code to automatically download the products provided by the French Sentinel collaborative ground segment named PEPS : https://peps.cnes.fr. PEPS is mirroring all the Sentinel data provided by ESA, and is providing a simplified access.
-
-This code was written thanks to the precious help of one my colleagues at CNES [Jérôme Gasperi](https://www.linkedin.com/pulse/rocket-earth-your-pocket-gasperi-jerome) who developped the "rocket" interface which is used by Peps.
-
-This code relies on python 2.7 and on the curl utility. Because of that, I guess it only works with linux.
-
-Only the recent PEPS products or the frequently accessed ones are stored on disks (2 PB), while the rest is stored on tapes (up to 14 PB). Data stored on tapes have an access time increased by 1 mn.
- 
+This is a fork of github projetct: https://github.com/olivierhagolle/peps_download
+The differences are the following:
+- Supports python 3
+- New query parameter to select a specific tile
+- New query parameter to define a geometry in Well Known Text standard 
 
 ## Examples
 
 ### for Sentinel-2
 This software is still quite basic, but if you have an account at PEPS, you may download products using command lines like 
 
-- `python ./peps_download.py  -c S2 -l 'Toulouse' -a peps.txt -d 2015-11-01 -f 2015-12-01`
+- `python ./peps_download.py  -c S2ST -a peps.txt -d 2018-01-01 -f 2018-01-31 -t 57KXB`
 
- which downloads the *Sentinel-2 DataTake products*  acquired in November 2015 above Toulouse. When you provide a date YY-MM-DD, it is actually YY-MM-DD:00;00:00. So a request with `-d 2015-11-01 -f 2015-11-01` will yield no result, while `-d 2015-11-01 -f 2015-11-02` will yield data acquired on 2015-11-01 (provided they exist).
+ which downloads the *Sentinel-2 single tile* corresponding to the 57KXB tile and acquired in January 2018.
 
-- `python ./peps_download.py  -c S2ST -l 'Toulouse' -a peps.txt -d 2017-01-01 -f 2017-02-01`
+- `python ./peps_download.py  -c S2ST -a peps.txt -d 2017-01-01 -f 2017-02-01  --geom "POLYGON((0.8362639474853495 43.73719801014047,1.1933196115478495 43.9669523968473,1.6437590646728495 43.875948803048,1.8250334787353495 43.61801226418353,1.6657317209228495 43.45474226426778,1.3581145334228495 43.32300876711054,0.9351409006103495 43.470690504609394,0.8362639474853495 43.73719801014047))"`
 
- which downloads the *Sentinel-2 single tile* products  acquired in January 2017 above Toulouse
-
-- `python ./peps_download.py  -c S2 --lon 1 --lat 43.5 -a peps.txt -d 2015-11-01 -f 2015-12-01`
-
- which downloads the Sentinel-2 products above --lon 1 --lat 43.5 (~Toulouse), acquired in November 2015.
- 
- - `python ./peps_download.py  -c S2 --lon 1 --lat 43.5 -a peps.txt -d 2015-11-01 -f 2015-12-01 -o 51` 
-
- which downloads the Sentinel-2 products above --lon 1 --lat 43.5 (~Toulouse), acquired in November 2015 from orbit path number 51 only.
-### for Sentinel-1
-- `python ./peps_download.py  -c S1 --lonmin 1 --lonmax 2 --latmin 43 --latmax 44 -a peps.txt -d 2015-11-01 -f 2015-12-01`
-
- which downloads the Sentinel-1 products in latitude, longitude box around Toulouse, acquired in November 2015.
-
-- `python ./peps_download.py -c S1 -p GRD -l 'Toulouse' -a peps.txt -d 2015-11-01 -f 2015-12-01`
-which downloads S1 GRD products above Toulouse
+ which downloads the *Sentinel-2 single tile* products  acquired in January 2018 above an area of Toulouse
 
 ##Authentification 
 
